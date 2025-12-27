@@ -4,9 +4,11 @@ import { Crown, Pencil, CheckCircle, CircleHelp } from 'lucide-react';
 interface Player {
     id: string;
     name: string;
+    avatar?: string;
     score: number;
     isHost: boolean;
     hasGuessed?: boolean;
+    playerId?: string;
     socketId?: string; // Sometimes used, prefer id
     team?: 'red' | 'blue';
 }
@@ -14,10 +16,11 @@ interface Player {
 interface PlayerListProps {
     players: Player[];
     currentDrawerId?: string;
-    myId?: string; // To highlight 'me'
+    myId?: string; // To highlight 'me' (can be socketId)
+    myPlayerId?: string; // Persistent ID
 }
 
-export default function PlayerList({ players, currentDrawerId, myId }: PlayerListProps) {
+export default function PlayerList({ players, currentDrawerId, myId, myPlayerId }: PlayerListProps) {
     const sorted = [...players].sort((a, b) => b.score - a.score);
     const hasTeams = players.some(p => p.team);
     const reds = sorted.filter(p => p.team === 'red');
@@ -34,7 +37,7 @@ export default function PlayerList({ players, currentDrawerId, myId }: PlayerLis
                              Red Team
                          </h4>
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                             {reds.map(p => renderPlayerCard(p, currentDrawerId, myId))}
+                             {reds.map(p => renderPlayerCard(p, currentDrawerId, myId, myPlayerId))}
                          </div>
                      </div>
                 )}
@@ -45,7 +48,7 @@ export default function PlayerList({ players, currentDrawerId, myId }: PlayerLis
                              Blue Team
                          </h4>
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                             {blues.map(p => renderPlayerCard(p, currentDrawerId, myId))}
+                             {blues.map(p => renderPlayerCard(p, currentDrawerId, myId, myPlayerId))}
                          </div>
                      </div>
                 )}
@@ -53,7 +56,7 @@ export default function PlayerList({ players, currentDrawerId, myId }: PlayerLis
                      <div>
                          <h4 style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>Spectators</h4>
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                             {noTeam.map(p => renderPlayerCard(p, currentDrawerId, myId))}
+                             {noTeam.map(p => renderPlayerCard(p, currentDrawerId, myId, myPlayerId))}
                          </div>
                      </div>
                 )}
@@ -63,14 +66,14 @@ export default function PlayerList({ players, currentDrawerId, myId }: PlayerLis
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
-            {sorted.map(p => renderPlayerCard(p, currentDrawerId, myId))}
+            {sorted.map(p => renderPlayerCard(p, currentDrawerId, myId, myPlayerId))}
         </div>
     );
 }
 
-function renderPlayerCard(p: Player, currentDrawerId?: string, myId?: string) {
+function renderPlayerCard(p: Player, currentDrawerId?: string, myId?: string, myPlayerId?: string) {
     const isDrawing = currentDrawerId && p.id === currentDrawerId;
-    const isMe = myId && (p.id === myId || p.socketId === myId);
+    const isMe = (myPlayerId && p.playerId === myPlayerId) || (myId && (p.id === myId || p.socketId === myId));
     const teamColor = p.team === 'red' ? '#ef4444' : (p.team === 'blue' ? '#3b82f6' : null);
 
     return (
@@ -80,22 +83,26 @@ function renderPlayerCard(p: Player, currentDrawerId?: string, myId?: string) {
             borderRadius: '8px',
             display: 'flex',
             justifyContent: 'space-between',
+            alignItems: 'center',
             border: isDrawing ? '1px solid var(--accent)' : (isMe ? '1px solid rgba(255,255,255,0.3)' : 'none'),
             borderLeft: teamColor ? `4px solid ${teamColor}` : undefined,
             transition: 'all 0.3s'
         }}>
-            <div>
-                <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {p.name}
-                    {p.isHost && <Crown size={14} color="#eab308" fill="#eab308" />}
-                    {isMe && <span style={{ fontSize: '0.7em', background: 'rgba(255,255,225,0.1)', padding: '1px 4px', borderRadius: '4px' }}>YOU</span>}
-                </div>
-                <div style={{ fontSize: '0.8rem', opacity: 0.7, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                    {isDrawing ? (
-                        <><Pencil size={12} /> Drawing</>
-                    ) : (
-                        p.hasGuessed ? <><CheckCircle size={12} color="#22c55e" /> Solved</> : <><CircleHelp size={12} /> Guessing</>
-                    )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <img src={p.avatar || `https://api.dicebear.com/7.x/personas/svg?seed=${p.name}`} style={{ width: 32, height: 32, borderRadius: '50%', background: 'white' }} />
+                <div>
+                    <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {p.name}
+                        {p.isHost && <Crown size={14} color="#eab308" fill="#eab308" />}
+                        {isMe && <span style={{ fontSize: '0.7em', background: 'rgba(255,255,225,0.1)', padding: '1px 4px', borderRadius: '4px' }}>YOU</span>}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.7, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                        {isDrawing ? (
+                            <><Pencil size={12} /> Drawing</>
+                        ) : (
+                            p.hasGuessed ? <><CheckCircle size={12} color="#22c55e" /> Solved</> : <><CircleHelp size={12} /> Guessing</>
+                        )}
+                    </div>
                 </div>
             </div>
             <div style={{ fontWeight: 'bold', color: 'var(--secondary)', fontSize: '1.2rem' }}>

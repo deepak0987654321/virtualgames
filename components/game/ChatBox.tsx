@@ -14,15 +14,23 @@ interface ChatBoxProps {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+  clearInputTrigger?: number; // When this changes, clear the input
 }
 
-export default function ChatBox({ messages, onSendMessage, className = '', placeholder = 'Type here...', disabled = false }: ChatBoxProps) {
+export default function ChatBox({ messages, onSendMessage, className = '', placeholder = 'Type here...', disabled = false, clearInputTrigger }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Clear input when clearInputTrigger changes (e.g., new round starts)
+  useEffect(() => {
+    if (clearInputTrigger !== undefined) {
+      setInput('');
+    }
+  }, [clearInputTrigger]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,29 +2,30 @@
 
 You asked for a free domain. The best way to get a URL like `virtualgames.fun` for free is to use a **Hosting Subdomain**. This gives you a public link (HTTPS) instantly.
 
-## Option 1: Railway (Recommended for Multiplayer)
+## Option 1: Render (Best FREE Option)
+Render offers a completely **Free Tier** for web services.
+*Note: Your app will "sleep" after 15 minutes of inactivity and take 30s to wake up.*
+*Warning: On the free tier, the SQLite database will reset if the server restarts. (For permanent data, you'd need a cloud database).*
+
+1.  **Sign Up**: [Render.com](https://render.com).
+2.  **New Web Service**: Click "New" -> "Web Service".
+3.  **Connect GitHub**: Select your `virtualgames` repo.
+4.  **Settings**:
+    *   **Runtime**: Docker
+    *   **Plan**: Free
+5.  **Deploy**: It will go live at `virtualgames.onrender.com`.
+
+## Option 2: Railway (Best Performance, Custom Domain)
 Railway allows you to deploy the `Dockerfile` I created.
+*Trial users get $5 of free credit, which lasts a few months.*
 
 1.  **Sign Up**: Go to [Railway.app](https://railway.app) (Github login recommended).
-2.  **New Project**: Click "New Project" -> "Deploy from Repo" -> Select your GitHub repo containing this code.
+2.  **New Project**: Click "New Project" -> "Deploy from Repo" -> Select your `virtualgames` repo.
 3.  **Wait**: Railway will detect `Dockerfile` and build it automatically.
 4.  **Get URL**:
     *   Once active, go to "Settings" -> "Domains".
-    *   Click "Generate Domain".
-    *   You will get a URL like: `virtualgames-production.up.railway.app`.
-    *   **This is your free domain!** You can share this with anyone.
-
-## Option 2: Render (Completely Free Tier)
-Render is slower on free tier (it "sleeps" when inactive) but completely free.
-
-1.  **Sign Up**: Go to [Render.com](https://render.com).
-2.  **New Web Service**: Click "New" -> "Web Service".
-3.  **Connect Repo**: Link your GitHub repository.
-4.  **Settings**:
-    *   **Environment**: Docker
-    *   **Plan**: Free
-5.  **Deploy**: Click Create Web Service.
-6.  **Get URL**: Render will give you `virtualgames.onrender.com`.
+    *   Click "Generate Domain" or Add your `virtualgather.games`.
+    *   **This is your professional host.**
 
 ## 🌐 HOSTING ON VERCEL? (Read Carefully)
 **Vercel is NOT recommended** for this specific app version because:

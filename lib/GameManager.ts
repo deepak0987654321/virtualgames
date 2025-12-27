@@ -3,13 +3,15 @@ import { TOPICS, DRAW_WORDS, Puzzle, DrawWord } from './puzzles';
 import leaderboardStore from './LeaderboardStore';
 
 // Types
-type GameType = 'rebus' | 'draw';
-type RoomState = 'LOBBY' | 'PLAYING' | 'ENDED' | 'SELECTING_WORD' | 'DRAWING' | 'ROUND_END';
+type GameType = 'rebus' | 'draw' | 'charades' | 'categories';
+type RoomState = 'LOBBY' | 'PLAYING' | 'ENDED' | 'SELECTING_WORD' | 'DRAWING' | 'ACTING' | 'ROUND_END';
 
 interface Player {
     id: string; // socketId
     socketId: string;
+    playerId?: string; // Persistent ID
     name: string;
+    avatar?: string;
     score: number;
     team?: 'red' | 'blue';
     isHost: boolean;
@@ -55,6 +57,9 @@ interface Room {
     usedPuzzles: Set<number>;
     hardcoreMode?: boolean;
     teamMode?: boolean;
+    videoEnabled?: boolean;
+    tenantId?: string;
+    tenantSlug?: string;
 }
 
 interface GameSettings {
@@ -64,8 +69,8 @@ interface GameSettings {
     hardcore?: boolean;
     teamMode?: boolean;
     teamConfig?: any;
+    videoEnabled?: boolean;
 }
-
 
 export class GameManager {
     private io: Server;
@@ -76,8 +81,14 @@ export class GameManager {
         this.rooms = new Map();
     }
 
-    createRoom(hostName: string, socketId: string, gameType: GameType = 'rebus', metadata: any = {}): string {
-        const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+    // ... createRoom, addPlayer, removePlayer ...
+
+    createRoom(hostName: string, socketId: string, gameType: GameType = 'rebus', metadata: any = {}, forcedCode?: string): string {
+        const code = forcedCode || Math.random().toString(36).substring(2, 6).toUpperCase();
+
+        // Extract Config
+        const config = metadata.config || {};
+
         const room: Room = {
             code,
             gameType,
@@ -85,9 +96,25 @@ export class GameManager {
             players: [],
             teams: { red: 0, blue: 0 },
             state: 'LOBBY',
-            rounds: 5,
-            currentRound: 0,
-            roundTime: 30,
+
+            // Apply Config or Defaults
+            rounds: config.rounds || 5, // Actually, we might use this as 'duration' multiplier or rounds
+
+            // Rebus/Draw specific round/turn timer
+            roundTime: config.roundTime || (gameType === 'rebus' ? 30 : 60),
+
+            // Global Game Duration (using rounds as a proxy for now if needed, or just default)
+            // But wait, the UI sends "rounds" and "roundTime".
+            // For Rebus: Duration = rounds * roundTime? Or Duration is separate?
+            // The UI has "Rounds [2,3,5...]" and "Round Time [30,60...]".
+            // In Skribbl, you set "Rounds" and "Draw Time". Total duration is dynamic.
+            // Our current logic uses `duration` (Total Game Time).
+            // Let's adapt: If rounds is set, we calculate approximate duration or change logic effectively.
+            // For now, let's store them and respect them in startGame.
+
+            // Global Game Duration
+            duration: config.gameDuration ? config.gameDuration * 60 : ((config.rounds || 5) * (config.roundTime || 60) * 2),
+
             timer: null,
             puzzleTimer: null,
             roundTimer: null,
@@ -99,13 +126,24 @@ export class GameManager {
             canvasHistory: [],
             timeLeft: 0,
             usedPuzzles: new Set(),
+            currentRound: 0,
+
+            // Config Flags
+            teamMode: !!config.teamMode,
+            videoEnabled: !!config.video,
+            tenantId: metadata.tenantId,
+            tenantSlug: metadata.tenantSlug
         };
         this.rooms.set(code, room);
-        this.addPlayer(code, hostName, socketId, true);
+        this.addPlayer(code, hostName, socketId, true, metadata.hostAvatar, metadata.playerId);
         return code;
     }
 
-    addPlayer(roomCode: string, name: string, socketId: string, isHost: boolean = false): Room | null {
+    getRoomInfo(code: string): Room | undefined {
+        return this.rooms.get(code);
+    }
+
+    addPlayer(roomCode: string, name: string, socketId: string, isHost: boolean = false, avatar?: string, playerId?: string): Room | null {
         const room = this.rooms.get(roomCode);
         if (!room) return null;
 
@@ -114,11 +152,12 @@ export class GameManager {
             room.deleteTimeout = null;
         }
 
-        const existingPlayerIndex = room.players.findIndex(p => p.name === name);
+        const existingPlayerIndex = room.players.findIndex(p => (playerId && p.playerId === playerId) || p.name === name);
 
         if (existingPlayerIndex !== -1) {
             room.players[existingPlayerIndex].socketId = socketId;
             room.players[existingPlayerIndex].id = socketId;
+            if (avatar) room.players[existingPlayerIndex].avatar = avatar; // Update avatar
             this.io.to(roomCode).emit('update_room', this.sanitizeRoom(room));
 
             // If Draw game, send current canvas state
@@ -131,12 +170,16 @@ export class GameManager {
         const existingSocket = room.players.find(p => p.socketId === socketId);
         if (existingSocket) return room;
 
+        const isFirstPlayer = room.players.length === 0;
+
         const player: Player = {
             id: socketId,
             socketId,
+            playerId,
             name,
+            avatar,
             score: 0,
-            isHost,
+            isHost: isHost || isFirstPlayer,
             hasGuessed: false
         };
 
@@ -184,16 +227,33 @@ export class GameManager {
         }
     }
 
+    updateSettings(roomCode: string, settings: Partial<GameSettings>) {
+        const room = this.rooms.get(roomCode);
+        if (!room) return;
+
+        console.log(`[GameManager] Updating settings for room ${roomCode}:`, settings);
+
+        if (settings.videoEnabled !== undefined) {
+             room.videoEnabled = settings.videoEnabled;
+             console.log(`[GameManager] Video Enabled set to: ${room.videoEnabled}`);
+        }
+
+        this.io.to(roomCode).emit('update_room', this.sanitizeRoom(room));
+    }
+
     startGame(roomCode: string, settings: GameSettings = {}) {
         const room = this.rooms.get(roomCode);
         if (!room) return;
+        console.log(`[GameManager] startGame called for room ${roomCode} (${room.gameType})`);
 
         room.players.forEach(p => p.score = 0);
         room.currentRound = 0;
 
-        // Apply Settings
-        room.hardcoreMode = !!settings.hardcore;
-        room.teamMode = !!settings.teamMode;
+        // Apply Settings (Only override if provided)
+        if (settings.hardcore !== undefined) room.hardcoreMode = !!settings.hardcore;
+        if (settings.teamMode !== undefined) room.teamMode = !!settings.teamMode;
+        if (settings.videoEnabled !== undefined) room.videoEnabled = !!settings.videoEnabled;
+
         room.teams = { red: 0, blue: 0 };
 
         if (room.teamMode) {
@@ -201,20 +261,23 @@ export class GameManager {
                  // Manual Assignment
                  const manualTeams = settings.teamConfig.teams;
                  room.players.forEach(p => {
-                     // Try to match by ID (preferred) or Name if needed, but ID should work as `players` uses socketId as ID
                      if (manualTeams[p.id]) {
                          p.team = manualTeams[p.id];
                      } else {
-                         // Default unassigned to Red for now to ensure they can play
                          p.team = 'red';
                      }
                  });
              } else {
-                 // Randomly shuffle and assign teams
-                 const shuffled = [...room.players].sort(() => 0.5 - Math.random());
-                 shuffled.forEach((p, idx) => {
-                     p.team = idx % 2 === 0 ? 'red' : 'blue';
-                 });
+                 // Randomly shuffle Only if teams not already assigned?
+                 // Actually, if we are starting game, we might want to re-shuffle or keep existing.
+                 // Let's shuffle if no teams assigned.
+                 const hasTeams = room.players.some(p => !!p.team);
+                 if (!hasTeams) {
+                    const shuffled = [...room.players].sort(() => 0.5 - Math.random());
+                    shuffled.forEach((p, idx) => {
+                        p.team = idx % 2 === 0 ? 'red' : 'blue';
+                    });
+                 }
              }
         } else {
              room.players.forEach(p => delete p.team);
@@ -222,7 +285,8 @@ export class GameManager {
 
         if (room.gameType === 'rebus') {
             this.startRebusGame(room, settings);
-        } else if (room.gameType === 'draw') {
+        } else if (room.gameType === 'draw' || room.gameType === 'charades') {
+            // Charades shares logic with Draw (Turn based, selector, timer)
             this.startDrawGame(room, settings);
         }
     }
@@ -315,7 +379,7 @@ export class GameManager {
         if (room.roundTimer) clearTimeout(room.roundTimer);
 
         room.currentWord = word;
-        room.state = 'DRAWING';
+        room.state = room.gameType === 'charades' ? 'ACTING' : 'DRAWING';
         room.roundTime = room.turnTime || 60; // Configurable drawing time
         room.roundTimeLeft = room.turnTime || 60;
 
@@ -698,7 +762,7 @@ export class GameManager {
         const player = room.players.find(p => p.socketId === socketId);
         if (!player) return;
 
-        if (room.gameType === 'draw') {
+        if (room.gameType === 'draw' || room.gameType === 'charades') {
             this.handleDrawGuess(room, player, text);
         } else {
             this.handleRebusGuess(room, player, text);
@@ -716,19 +780,27 @@ export class GameManager {
         room.timeLeft = 0; // Force 0 to avoid stuck timers
 
         // Sort players by score
-        const sortedPlayers = room.players.map(p => ({ id: p.id, name: p.name, score: p.score })).sort((a, b) => b.score - a.score);
+        const sortedPlayers = room.players.map(p => ({ id: p.id, playerId: p.playerId, name: p.name, score: p.score, team: p.team })).sort((a, b) => b.score - a.score);
 
         // Save Winner to Leaderboard
-        if (sortedPlayers.length > 0) {
+        if (sortedPlayers.length > 0 && sortedPlayers[0].score > 0) {
             // Prepare results for DB
             const results = sortedPlayers.map((p, index) => ({
+                playerId: p.playerId,
                 name: p.name,
                 score: p.score,
-                isWinner: index === 0 && p.score > 0 // First player with score > 0 is winner
+                team: p.team, // Pass Team Info
+                isWinner: index === 0 && p.score > 0
             }));
 
             // Save to DB
-            leaderboardStore.recordGameResult(results, room.gameType).catch(console.error);
+            leaderboardStore.recordGameResult(
+                results,
+                room.gameType,
+                room.metadata?.company,
+                room.metadata?.product,
+                room.tenantId // Pass tenantId
+            ).catch(console.error);
         }
 
         this.io.to(roomCode).emit('update_room', this.sanitizeRoom(room));
@@ -780,7 +852,10 @@ export class GameManager {
         const settings: GameSettings = {
             duration: room.duration ? room.duration / 60 : undefined,
             turnTime: room.turnTime,
-            puzzleTime: room.roundTime
+            puzzleTime: room.roundTime,
+            videoEnabled: room.videoEnabled,
+            hardcore: room.hardcoreMode,
+            teamMode: room.teamMode
         };
 
        this.startGame(roomCode, settings);
@@ -792,7 +867,9 @@ export class GameManager {
             code: room.code,
             players: room.players.map(p => ({
                 id: p.id,
+                playerId: p.playerId,
                 name: p.name,
+                avatar: p.avatar,
                 score: p.score,
                 team: p.team,
                 isHost: p.isHost,
@@ -802,7 +879,10 @@ export class GameManager {
             state: room.state,
             currentRound: room.currentRound,
             gameType: room.gameType,
-            timeLeft: room.timeLeft
+            timeLeft: room.timeLeft,
+            videoEnabled: room.videoEnabled,
+            teamMode: room.teamMode,
+            hardcoreMode: room.hardcoreMode
         };
 
         // Add Specifics
@@ -810,7 +890,7 @@ export class GameManager {
             clean.maskedAnswer = room.maskedAnswer;
             clean.puzzleTimeLimit = room.roundTime;
             clean.puzzleTimeLeft = room.puzzleTimeLeft;
-        } else if (room.gameType === 'draw') {
+        } else if (room.gameType === 'draw' || room.gameType === 'charades') {
             clean.currentDrawer = room.currentDrawer;
             clean.maskedAnswer = room.maskedAnswer;
             clean.roundTimeLeft = room.roundTimeLeft;

@@ -1,4 +1,4 @@
-# Rebus Royale - Game Design Document
+# Virtual Games - Game Design Document
 
 ## 1️⃣ GAME NAME IDEAS
 1. Rebus Royale

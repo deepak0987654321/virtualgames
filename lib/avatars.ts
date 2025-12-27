@@ -1,0 +1,22 @@
+export const AVATARS = [
+    '/avatars/avator01.svg',
+    '/avatars/avator02.svg',
+    '/avatars/avator03.svg',
+    '/avatars/avator04.svg',
+    '/avatars/avator05.svg',
+    '/avatars/avator06.svg',
+    '/avatars/avator07.svg',
+    '/avatars/avator08.svg',
+    '/avatars/avator09.svg',
+    '/avatars/avator10.svg',
+    '/avatars/avator11.svg',
+    '/avatars/avator12.svg',
+    '/avatars/avator13.svg',
+    '/avatars/avator14.svg',
+    '/avatars/avator15.svg',
+    '/avatars/avator16.svg',
+    '/avatars/avator17.svg',
+    '/avatars/avator18.svg',
+    '/avatars/avator19.svg',
+    '/avatars/avator20.svg'
+];

@@ -1,4 +1,4 @@
-# 🚀 Rebus Royale - Improvement Roadmap
+# 🚀 Virtual Games - Improvement Roadmap
 
 Here is a prioritized list of features and improvements to elevate the game to the next level.
 

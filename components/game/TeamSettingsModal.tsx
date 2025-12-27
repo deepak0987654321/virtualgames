@@ -13,7 +13,7 @@ interface TeamSettingsModalProps {
     onClose: () => void;
     onConfirm: (config: { mode: 'auto' | 'manual', teams?: Record<string, 'red' | 'blue'> }) => void;
     players: Player[];
-    gameType: 'draw' | 'rebus';
+    gameType: 'draw' | 'rebus' | 'charades';
     currentConfig?: any;
 }
 
@@ -229,14 +229,16 @@ export default function TeamSettingsModal({ isOpen, onClose, onConfirm, players,
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px 20px', borderRadius: '12px', display: 'flex', gap: '20px', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent)', minWidth: '200px' }}>
                                 <Info size={20} />
-                                <strong style={{ fontSize: '1.1rem' }}>{gameType === 'draw' ? 'Draw & Guess' : 'Word Guess'}</strong>
+                                <strong style={{ fontSize: '1.1rem' }}>
+                                    {gameType === 'draw' ? 'Draw & Guess' : (gameType === 'charades' ? 'Video Charades' : 'Word Guess')}
+                                </strong>
                              </div>
 
                              <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }}></div>
 
-                             {gameType === 'draw' ? (
+                             {gameType === 'draw' || gameType === 'charades' ? (
                                  <div style={{ display: 'flex', gap: '30px', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
-                                    <div>⚡ <strong>Drawer's Team</strong> guesses only</div>
+                                    <div>⚡ <strong>{gameType === 'draw' ? "Drawer's" : "Actor's"} Team</strong> guesses only</div>
                                     <div>🏆 Points shared by entire team</div>
                                  </div>
                              ) : (

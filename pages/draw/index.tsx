@@ -1,109 +1,45 @@
-import { useState } from 'react';
 import { useRouter } from 'next/router';
 import io from 'socket.io-client';
+import { useAuth } from '../../hooks/useAuth';
+import GameLobby, { RoomCreationParams } from '../../components/game/GameLobby';
 
 export default function DrawLobby() {
+  const { user } = useAuth();
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [company, setCompany] = useState('');
-  const [product, setProduct] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [error, setError] = useState('');
 
-  const createRoom = async () => {
-    if (!name.trim()) return setError('Please enter your name');
-    const socket = io();
-    socket.emit('create_room', { name, gameType: 'draw', company, product }, (response: any) => {
-      if (response.success) {
-        router.push(`/draw/room/${response.roomCode}?name=${encodeURIComponent(name)}`);
-      }
-    });
-  };
+  const handleCreateDrawRoom = (params: RoomCreationParams) => {
+      const socket = io();
+      const pId = user?.playerId;
 
-  const joinRoom = async () => {
-    if (!name.trim()) return setError('Please enter your name');
-    if (!roomCode.trim()) return setError('Please enter a room code');
-
-    router.push(`/draw/room/${roomCode}?name=${encodeURIComponent(name)}`);
+      socket.emit('create_room', {
+            name: params.name,
+            gameType: 'draw',
+            company: params.company,
+            product: params.product,
+            avatar: params.avatar,
+            playerId: pId,
+            roomCode: params.roomCode,
+            config: params.config
+      }, (response: any) => {
+        if (response.success) {
+          router.push(`/draw/room/${response.roomCode}?name=${encodeURIComponent(params.name)}&avatar=${encodeURIComponent(params.avatar)}&playerId=${pId || ''}`);
+        }
+      });
   };
 
   return (
-    <div className="lobby-container">
-      <div className="glass-panel" style={{ padding: '3rem', maxWidth: '500px', width: '90%', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem', background: 'linear-gradient(to right, #22d3ee, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          Draw & Guess
-        </h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
-          Sketch masterpieces. Guess the mess.
-        </p>
-
-        {error && <div style={{ color: 'var(--error)', marginBottom: '1rem' }}>{error}</div>}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* Metadata for Room Creation */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <input
-                type="text"
-                placeholder="Company (for Leaderboard)"
-                className="input-field"
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-              />
-               <input
-                type="text"
-                placeholder="Product (for Leaderboard)"
-                className="input-field"
-                value={product}
-                onChange={(e) => setProduct(e.target.value)}
-              />
-          </div>
-          <input
-            type="text"
-            placeholder="Your Nickname"
-            className="input-field"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-             <button onClick={createRoom} className="btn-primary" style={{ height: '50px' }}>
-               Create Room
-             </button>
-             <div style={{ position: 'relative' }}>
-               <input
-                 type="text"
-                 placeholder="Room Code"
-                 className="input-field"
-                 style={{ height: '50px', paddingRight: '5px' }}
-                 value={roomCode}
-                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-               />
-               <button
-                 onClick={joinRoom}
-                 style={{
-                   position: 'absolute',
-                   right: '5px',
-                   top: '5px',
-                   bottom: '5px',
-                   border: 'none',
-                   background: 'rgba(255,255,255,0.1)',
-                   color: 'white',
-                   borderRadius: '4px',
-                   cursor: 'pointer',
-                   padding: '0 10px'
-                 }}>
-                 Join
-               </button>
-             </div>
-          </div>
-
-           <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
-             <button onClick={() => router.push('/')} className="btn-secondary" style={{ width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)' }}>
-                ← Back to Game Lobby
-             </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      <GameLobby
+          title="Draw & Guess"
+          description="Sketch masterpieces. Guess the mess."
+          gameType="draw"
+          gradient="linear-gradient(to right, #22d3ee, #3b82f6)"
+          onCreateRoom={handleCreateDrawRoom}
+          rules={[
+            "One player draws a word.",
+            "Others try to guess it.",
+            "Type your guess in chat to score.",
+            "Draw quickly and clearly!"
+          ]}
+      />
   );
 }
