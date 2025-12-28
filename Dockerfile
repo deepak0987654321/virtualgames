@@ -1,5 +1,5 @@
 # Base image
-FROM node:18-alpine
+FROM node:22-alpine
 
 
 # Install build dependencies for native modules (sqlite3)
