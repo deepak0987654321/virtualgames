@@ -522,13 +522,18 @@ app.prepare().then(async () => {
                         const session = await categoriesGameManager.getSessionByRoomCode(roomCode);
                         if (session) {
                             const leaderboard = await categoriesGameManager.getLeaderboard(session.sessionId);
+                            console.log(`[Categories] Syncing scores for ${roomCode}. Leaderboard:`, JSON.stringify(leaderboard));
+
                             room.players.forEach(p => {
                                 const entry = leaderboard.find((l: any) =>
                                     (p.playerId && l.playerId === p.playerId) ||
                                     (l.username === p.name && l.username !== 'Player') ||
                                     (l.playerId === p.id)
                                 );
-                                if (entry) p.score = entry.totalScore;
+                                if (entry) {
+                                    p.score = entry.totalScore || 0;
+                                    console.log(`[Categories] Restored score for ${p.name}: ${p.score}`);
+                                }
                             });
                         }
                     } catch (e) {
@@ -754,7 +759,8 @@ app.prepare().then(async () => {
             const room = gameManager.getRoomInfo(roomCode);
             if (room) {
                 const leaderboard = await categoriesGameManager.getLeaderboard(sessionId);
-                console.log(`[Categories] Finalizing ${roomCode}. Leaderboard size: ${leaderboard.length}, Room Players: ${room.players.length}`);
+                console.log(`[Categories] Finalizing ${roomCode}. Leaderboard:`, JSON.stringify(leaderboard));
+                console.log(`[Categories] Room Players:`, room.players.map(p => ({ name: p.name, id: p.id, playerId: p.playerId })));
 
                 room.players.forEach(p => {
                     // Try matching by playerId, then by name
@@ -765,8 +771,10 @@ app.prepare().then(async () => {
                     );
 
                     if (entry) {
-                        console.log(`[Categories] Found score for ${p.name}: ${entry.totalScore}`);
-                        p.score = entry.totalScore;
+                        console.log(`[Categories] Updating score for ${p.name}: ${entry.totalScore}`);
+                        p.score = entry.totalScore || 0;
+                    } else {
+                        console.log(`[Categories] No score entry found for ${p.name}`);
                     }
                 });
                 // Broadcast update so sidebar reflects new scores

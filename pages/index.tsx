@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, Box, Users, Coffee, Heart, Palette, Video, Brain, List, ShieldCheck, X, Check, Globe, Lock, BookOpen } from 'lucide-react';
+import { ArrowRight, Box, Users, Coffee, Heart, Palette, Video, Brain, List, ShieldCheck, X, Check, Globe, Lock, BookOpen, Menu } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { GAMES } from '../lib/gameConfig';
@@ -12,8 +12,9 @@ export default function LandingPage() {
   const [isVisible, setIsVisible] = useState<{ [key: string]: boolean }>({});
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Modal State
+  // Modal & Mobile Menu State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
@@ -108,15 +109,51 @@ export default function LandingPage() {
                   <Box size={32} color="var(--accent)" />
                   <span>VirtualGames</span>
               </div>
-              <div className="nav-links" style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
-                  <a href="#games" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>Games</a>
-                  <a href="#features" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>Solutions</a>
+
+              {/* Desktop Nav */}
+              <div className="nav-links">
+                  <a href="#games">Games</a>
+                  <a href="#features">Solutions</a>
                   <button className="btn-primary" onClick={() => router.push('/superadmin')} style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
                       Superadmin
                   </button>
               </div>
+
+              {/* Mobile Menu Toggle */}
+              <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)}>
+                  <Menu size={28} color="white" />
+              </button>
           </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+          <div className="mobile-menu-overlay" onClick={() => setMobileMenuOpen(false)}>
+              <div className="mobile-menu-content" onClick={e => e.stopPropagation()}>
+                  <div className="mobile-menu-header">
+                      <div className="logo">
+                          <Box size={28} color="var(--accent)" />
+                          <span>VirtualGames</span>
+                      </div>
+                      <button className="close-btn-mobile" onClick={() => setMobileMenuOpen(false)}>
+                          <X size={28} />
+                      </button>
+                  </div>
+                  <div className="mobile-links">
+                      <a href="#games" onClick={() => setMobileMenuOpen(false)}>Games</a>
+                      <a href="#features" onClick={() => setMobileMenuOpen(false)}>Solutions</a>
+                      <a onClick={() => { router.push('/superadmin'); setMobileMenuOpen(false); }}>Superadmin</a>
+                      <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', width: '100%', margin: '10px 0' }} />
+                      <button className="btn-primary" onClick={() => { router.push('/demo'); setMobileMenuOpen(false); }}>
+                          Try Demo
+                      </button>
+                      <button className="btn-ghost" onClick={() => { setShowCreateModal(true); setMobileMenuOpen(false); }}>
+                          Create Room
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* Hero Section */}
       <div className="landing-container">
@@ -133,7 +170,7 @@ export default function LandingPage() {
 
                   <div className="glass-panel" style={{ padding: '35px', background: 'rgba(255,255,255,0.03)', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
                       <h3 style={{ marginBottom: '22px', textAlign: 'left', fontSize: '1.3rem', fontWeight: 700 }}>Ready to start your party?</h3>
-                      <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+                      <div className="hero-buttons">
                           <button className="btn-primary" onClick={() => router.push('/demo')} style={{
                               flex: 1.5,
                               padding: '18px 30px',
